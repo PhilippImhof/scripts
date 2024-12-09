@@ -78,9 +78,14 @@ def fetch_activity_data():
         reader = csv.DictReader(activity_data)
         activity_data = {}
         for row in reader:
-            date = datetime.datetime.fromtimestamp(
-                int(row["day_time"]) / 1000
-            ).strftime("%Y-%m-%d")
+            try:
+                date = datetime.datetime.fromtimestamp(
+                    int(row["day_time"]) / 1000
+                ).strftime("%Y-%m-%d")
+            except ValueError:
+                date = datetime.datetime.fromisoformat(
+                    row["day_time"]
+                ).strftime("%Y-%m-%d")
             step_count = int(row["step_count"])
             # Samsung Health stores the distance in m, Garmin Connect expects it to be in km.
             distance = round(float(row["distance"]) / 1000, 2)
