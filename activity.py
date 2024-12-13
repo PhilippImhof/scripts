@@ -4,6 +4,7 @@
 import csv
 import datetime
 import glob
+import warnings
 
 
 def fetch_floor_data():
@@ -13,8 +14,10 @@ def fetch_floor_data():
     them all and add them up.
     """
     floor_files = glob.glob("com.samsung.health.floors_climbed.*.csv")
+    # If there is no floor data, we return an empty dict.
     if len(floor_files) == 0:
-        raise Exception("No floors data found.")
+        warnings.warn("No floor data found.")
+        return {}
     filename = floor_files[0]
 
     with open(filename, newline="") as floor_data:
