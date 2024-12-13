@@ -45,7 +45,8 @@ def fetch_calorie_data():
 
     calorie_files = glob.glob("com.samsung.shealth.calories_burned.details.*.csv")
     if len(calorie_files) == 0:
-        raise Exception("No calorie data found.")
+        warnings.warn("No calorie data found.")
+        return {}
     filename = calorie_files[0]
 
     with open(filename, newline="") as calories_data:
@@ -72,7 +73,8 @@ def fetch_activity_data():
 
     activity_files = glob.glob("com.samsung.shealth.activity.day_summary.*.csv")
     if len(activity_files) == 0:
-        raise Exception("No activity data found.")
+        warnings.warn("No activity data found.")
+        return {}
     filename = activity_files[0]
 
     with open(filename, newline="") as activity_data:
