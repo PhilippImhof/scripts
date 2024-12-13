@@ -4,6 +4,7 @@
 import csv
 import datetime
 import glob
+import warnings
 
 
 def fetch_floor_data():
@@ -13,8 +14,10 @@ def fetch_floor_data():
     them all and add them up.
     """
     floor_files = glob.glob("com.samsung.health.floors_climbed.*.csv")
+    # If there is no floor data, we return an empty dict.
     if len(floor_files) == 0:
-        raise Exception("No floors data found.")
+        warnings.warn("No floor data found.")
+        return {}
     filename = floor_files[0]
 
     with open(filename, newline="") as floor_data:
@@ -42,7 +45,8 @@ def fetch_calorie_data():
 
     calorie_files = glob.glob("com.samsung.shealth.calories_burned.details.*.csv")
     if len(calorie_files) == 0:
-        raise Exception("No calorie data found.")
+        warnings.warn("No calorie data found.")
+        return {}
     filename = calorie_files[0]
 
     with open(filename, newline="") as calories_data:
@@ -69,7 +73,8 @@ def fetch_activity_data():
 
     activity_files = glob.glob("com.samsung.shealth.activity.day_summary.*.csv")
     if len(activity_files) == 0:
-        raise Exception("No activity data found.")
+        warnings.warn("No activity data found.")
+        return {}
     filename = activity_files[0]
 
     with open(filename, newline="") as activity_data:
