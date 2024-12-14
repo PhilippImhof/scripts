@@ -21,8 +21,14 @@ def fetch_weight_data() -> List[Dict[str, float]]:
         next(f)
         reader = csv.DictReader(f)
         for row in reader:
-            weight = float(row["weight"])
-            height = float(row["height"])
+            try:
+                weight = float(row["weight"])
+            except ValueError:
+                weight = 0
+            try:
+                height = float(row["height"])
+            except ValueError:
+                height = 0
             # If body fat is recorded, we will include it. However, Garmin Connect
             # will not show it.
             try:
