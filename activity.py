@@ -114,7 +114,7 @@ def merge_data(floors, calories, activities):
 
     for date, f in floors.items():
         if date not in merged_data:
-            merged_data[date]["Calories"] = 0
+            merged_data[date] = {"Calories Burned": 0}
         merged_data[date]["Floors"] = f
 
     for date, dic in activities.items():
