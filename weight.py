@@ -2,78 +2,111 @@
 
 import csv
 import glob
-from typing import Dict, List
+import os
+from typing import List, Tuple, Optional, TextIO
 
 
-def fetch_weight_data() -> List[Dict[str, float]]:
+def fetch_weight_data() -> List[Tuple[str, float, float, float, float]]:
     """
-    Fetch the weight data from the Samsung Health data export, which is
-    a CSV file. Return a list of dicts, one dict per dataset.
+    Fetch weight data from the Samsung Health CSV export.
+
+    Returns:
+        List[Tuple[str, float, float, float, float]]:
+        A list of tuples containing:
+        - Date (YYYY-MM-DD)
+        - Weight (kg)
+        - Height (cm)
+        - BMI
+        - Fat percentage
     """
 
     weight_files = glob.glob("com.samsung.health.weight.*.csv")
-    if len(weight_files) == 0:
-        raise Exception("No weight data found.")
-    filename = weight_files[0]
+    if not weight_files:
+        raise FileNotFoundError("No weight data found.")
 
+    filename: str = weight_files[0]
     weight_data = []
-    with open(filename, newline="") as f:
-        next(f)
-        reader = csv.DictReader(f)
-        for row in reader:
-            weight = float(row["weight"])
-            height = float(row["height"])
-            # If body fat is recorded, we will include it. However, Garmin Connect
-            # will not show it.
-            try:
-                fat_mass = float(row["body_fat_mass"])
-            except ValueError:
-                fat_mass = 0
 
-            weight_data.append(
-                {
-                    "Date": row["start_time"][0:10],
-                    "Weight": weight,
-                    "Height": height,
-                    "BMI": round(weight / ((height / 100) ** 2), 2),
-                    "Fat": round(fat_mass / weight * 100, 1),
-                }
-            )
+    with open(filename, newline="", encoding="utf-8") as file:
+        next(file)
+        reader = csv.reader(file)
+
+        # Extract column headers
+        headers = next(reader, None)
+        if not headers:
+            raise ValueError("CSV file is empty.")
+
+        try:
+            idx_weight = headers.index("weight")
+            idx_height = headers.index("height")
+            idx_fat_mass = headers.index("body_fat_mass")
+            idx_start_time = headers.index("start_time")
+        except ValueError as e:
+            raise KeyError(f"Missing required column: {e}")
+
+        for row in reader:
+            try:
+                weight = float(row[idx_weight])
+            except (ValueError, IndexError):
+                continue  # Skip invalid weight entries
+
+            height = float(row[idx_height]) if row[idx_height] else 178.0
+            fat_mass = float(row[idx_fat_mass]) if row[idx_fat_mass] else 0.0
+
+            bmi = round(weight / ((height / 100) ** 2), 2) if height else 0.0
+            fat_percentage = round(fat_mass / weight * 100, 1) if fat_mass else 0.0
+            date = row[idx_start_time][:10]
+
+            weight_data.append((date, weight, height, bmi, fat_percentage))
 
     return weight_data
 
 
-def write_to_file(weight_data: List[Dict[str, float]]) -> None:
+def write_to_file(weight_data: List[Tuple[str, float, float, float, float]]) -> None:
     """
-    Write the data to a series of CSV files. We can only store a certain number of lines per file,
-    because if the files become too large, Garmin Connect will fail importing them. Everything
-    below 4 KB seems to be fine.
-    """
-    LINES_PER_FILE = 75
+    Writes weight data into CSV files, ensuring each file remains small enough for Garmin Connect import.
 
-    dest = None
-    lines_written = 0
-    columns = list(weight_data[0].keys())
+    Args:
+        weight_data (List[Tuple[str, float, float, float, float]]): Processed weight records.
+    """
+
+    if not weight_data:
+        print("No valid weight data to export.")
+        return
+
+    os.makedirs("Weight_exports", exist_ok=True)
+
+    lines_per_file: int = 75
+    lines_written: int = 0
+    dest: Optional[TextIO] = None
+    writer: Optional[csv.writer] = None
+
+    columns = ["Date", "Weight", "Height", "BMI", "Fat"]
+
     for wd in weight_data:
-        if lines_written % LINES_PER_FILE == 0:
-            filename = f"weight-export-{lines_written // LINES_PER_FILE + 1}.csv"
-            if hasattr(dest, "close"):
+        if lines_written % lines_per_file == 0:
+            if dest:
                 dest.close()
 
-            dest = open(filename, "w", newline="")
+            filename = f"weight-export-{lines_written // lines_per_file + 1}.csv"
+            dest = open(f"Weight_exports/{filename}", "w", newline="")
             dest.write("Body\n")
-            writer = csv.DictWriter(
-                dest, fieldnames=columns, lineterminator="\n", quoting=csv.QUOTE_ALL
-            )
-            writer.writeheader()
+            writer = csv.writer(dest, lineterminator="\n", quoting=csv.QUOTE_ALL)
+            writer.writerow(columns)
 
-        writer.writerow(wd)
+        if writer:
+            writer.writerow(wd)
+
         lines_written += 1
 
-    try:
+    if dest:
         dest.close()
-    except:
-        pass
 
 
-write_to_file(fetch_weight_data())
+if __name__ == "__main__":
+    try:
+        weight_data = fetch_weight_data()
+        write_to_file(weight_data)
+        print("Export completed successfully.")
+    except Exception as e:
+        print(f"Error: {e}")
